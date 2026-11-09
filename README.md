@@ -18,5 +18,4 @@ Esta versão trabalha com novembro de 2026. Não há virada automática de mês.
 
 HTML/CSS/JavaScript sem dependências. Sirva esta pasta em localhost para testar o service worker. Ao atualizar a interface, incremente a versão de cache em sw.js e no indicador de index.html. O cache prioriza a versão salva. Todos os valores monetários são inteiros em centavos.
 
-Testes de lógica: `node tests.cjs`. O teste usa dados fictícios. A instalação física no Galaxy A54 ainda deve ser verificada no aparelho.
 
