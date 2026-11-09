@@ -1,0 +1,21 @@
+const fs=require('fs'),vm=require('vm'),assert=require('node:assert/strict');
+const html=fs.readFileSync(__dirname+'/index.html','utf8');
+const seed=JSON.parse(html.match(/id="initial-data"[^>]*>(.*?)<\/script>/s)[1]);
+const script=html.match(/<script>\n([\s\S]*?)<\/script>/)[1];new vm.Script(script);
+const logic=script.slice(0,script.indexOf('try{const raw=localStorage'));
+const ctx=vm.createContext({document:{getElementById:()=>({textContent:JSON.stringify(seed)})},Intl,console});
+vm.runInContext(logic+'\nthis.api={totals,valid,amountOf};',ctx);const{totals,valid,amountOf}=ctx.api;
+const d=JSON.parse(JSON.stringify(seed));for(const c of d.categories){c.budget=10000;c.spent=1000;}d.balances={carry:5000,protected:20000,cdb:40000,debt:3000};
+const base=totals(d);assert.equal(base.account,106000);assert.equal(base.wealth,146000);
+function trial(type,amount,category='dia'){const x=JSON.parse(JSON.stringify(d));x.transactions=[{id:'test-1',type,amount,category,date:'2026-11-09',description:'Teste fictício',voided:false}];return x;}
+let x=trial('expense',2500);assert.equal(totals(x).account,103500);assert.equal(totals(x).wealth,143500);valid(x);
+x=trial('reserve',2500,'reserva');assert.equal(totals(x).account,103500);assert.equal(totals(x).cdb,42500);assert.equal(totals(x).wealth,base.wealth);valid(x);
+x=trial('withdraw',2500);assert.equal(totals(x).account,108500);assert.equal(totals(x).cdb,37500);assert.equal(totals(x).wealth,base.wealth);
+x=trial('repayment',1500);assert.equal(totals(x).debt,1500);assert.equal(totals(x).remaining,base.remaining);assert.equal(totals(x).account,107500);
+x.transactions[0].voided=true;assert.equal(totals(x).account,base.account);assert.equal(totals(x).debt,3000);
+assert.equal(totals(trial('yield',100)).wealth,146100);assert.equal(totals(trial('income',100)).account,106100);
+assert.throws(()=>valid(trial('repayment',3001)));assert.throws(()=>valid(trial('withdraw',40001)));assert.throws(()=>valid(trial('expense',86001)));assert.throws(()=>valid(trial('expense',1,'reserva')));
+x=trial('expense',1);x.transactions[0].date='2026-11-31';assert.throws(()=>valid(x));x=trial('expense',1);x.transactions.push(x.transactions[0]);assert.throws(()=>valid(x));
+assert.equal(amountOf('1.234,56'),123456);assert.equal(amountOf('0,01'),1);assert.equal(amountOf('25'),2500);for(const bad of ['25.50','-5','0','abc','12,345','1e3'])assert.throws(()=>amountOf(bad));
+assert.equal(totals(valid(JSON.parse(JSON.stringify(d)))).wealth,base.wealth);
+console.log('27 verificações passaram: cálculos, transferências, proteção do décimo, dívida, cancelamento, backup e valores em centavos.');
